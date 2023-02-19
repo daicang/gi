@@ -9,8 +9,7 @@ import (
 )
 
 type Parser struct {
-	l *lexer.Lexer
-
+	l         *lexer.Lexer
 	curToken  token.Token
 	peekToken token.Token
 	errors    []string
@@ -33,7 +32,8 @@ func (p *Parser) Errors() []string {
 }
 
 func (p *Parser) peekError(t token.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s", t, p.peekToken.Type)
+	msg := fmt.Sprintf("line %d: expected token %s, got %s: '%s'",
+		p.l.LineNumber(), t, p.peekToken.Type, p.l.Line())
 	p.errors = append(p.errors, msg)
 }
 
@@ -61,6 +61,8 @@ func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
 		return p.parseLetStatement()
+	case token.RETURN:
+		return p.parseReturnStatement()
 	default:
 		return nil
 	}
@@ -73,6 +75,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
+
 	stmt.Name = &ast.Identifier{
 		Token: p.curToken,
 		Value: p.curToken.Literal,
@@ -82,11 +85,29 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 
-	// if !p.expectPeek(token.EXP) {
-	// 	return nil
-	// }
+	for !p.curTokenIs(token.SEMICOLON) {
+		p.NextToken()
+	}
 
-	if !p.expectPeek(token.SEMICOLON) {
+	if !p.curTokenIs(token.SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+// return expression;
+func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
+	stmt := &ast.ReturnStatement{
+		Token: token.Token{
+			Type:    token.RETURN,
+			Literal: "return",
+		},
+	}
+
+	p.NextToken()
+
+	if !p.curTokenIs(token.SEMICOLON) {
 		p.NextToken()
 	}
 
@@ -106,6 +127,7 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 		p.NextToken()
 		return true
 	} else {
+		p.peekError(t)
 		return false
 	}
 }

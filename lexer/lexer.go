@@ -6,9 +6,15 @@ import (
 
 type Lexer struct {
 	input        string
+	lineNumber   int
+	line         string
 	position     int  // current reading position
 	readPosition int  // next reading position
 	ch           byte // current char
+}
+
+func isNewLine(ch byte) bool {
+	return ch == '\n'
 }
 
 func isWhiteSpace(ch byte) bool {
@@ -24,9 +30,20 @@ func isLetter(ch byte) bool {
 }
 
 func New(input string) *Lexer {
-	l := &Lexer{input: input}
+	l := &Lexer{
+		input: input,
+		line:  "",
+	}
 	l.readChar()
 	return l
+}
+
+func (l *Lexer) LineNumber() int {
+	return l.lineNumber
+}
+
+func (l *Lexer) Line() string {
+	return l.line
 }
 
 func (l *Lexer) readChar() {
@@ -34,6 +51,7 @@ func (l *Lexer) readChar() {
 		l.ch = 0
 	} else {
 		l.ch = l.input[l.readPosition]
+		l.line += string(l.ch)
 	}
 	l.position = l.readPosition
 	l.readPosition++
@@ -115,6 +133,10 @@ func (l *Lexer) NextToken() token.Token {
 
 func (l *Lexer) skipWhiteSpaces() {
 	for isWhiteSpace(l.ch) {
+		if isNewLine(l.ch) {
+			l.lineNumber++
+			l.line = ""
+		}
 		l.readChar()
 	}
 }
